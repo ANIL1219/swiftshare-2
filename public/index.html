@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SwiftShare</title>
+<!-- Tab logo favicon -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234f8eff'/><text x='16' y='23' font-size='20' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>S</text></svg>"/>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#050810;--bg1:#090e1a;--bg2:#0d1425;--bg3:#111b33;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --a1:#4f8eff;--a2:#00e5ff;--a3:#00ffb3;--a4:#ff6b6b;--a5:#ffd166;
+  --text:#e8edf5;--text2:#7a8aaa;--text3:#3a4a6a;
+  --mono:'JetBrains Mono',monospace;--sans:'Space Grotesk',sans-serif;
+  --r:12px;--r2:18px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 100% 60% at 0% 0%,rgba(79,142,255,.08) 0%,transparent 55%),
+             radial-gradient(ellipse 80% 50% at 100% 100%,rgba(0,229,255,.06) 0%,transparent 55%);}
+.dot-grid{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(rgba(79,142,255,.18) 1px,transparent 1px);
+  background-size:28px 28px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 30%,transparent 100%);}
+.app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:58px;
+  border-bottom:1px solid var(--border);backdrop-filter:blur(20px);
+  background:rgba(5,8,16,.7);position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:32px;height:32px;border-radius:9px;
+  background:linear-gradient(135deg,var(--a1),var(--a2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:.9rem;font-weight:700;color:#fff;box-shadow:0 0 16px rgba(79,142,255,.4);}
+.logo-text{font-size:1.1rem;font-weight:700;letter-spacing:-.3px;}
+.logo-text em{font-style:normal;color:var(--a2);}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.pill{font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;padding:4px 10px;
+  border-radius:20px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);color:var(--a2);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--a4);box-shadow:0 0 8px var(--a4);}
+.live-dot.on{background:var(--a3);box-shadow:0 0 8px var(--a3);animation:blink 2s ease infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);
+  backdrop-filter:blur(8px);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);
+  padding:32px;width:360px;max-width:90vw;text-align:center;}
+.modal h2{font-size:1.2rem;font-weight:700;margin-bottom:8px;}
+.modal p{font-size:.8rem;color:var(--text2);margin-bottom:24px;line-height:1.6;}
+.modal input{width:100%;background:var(--bg3);border:1px solid var(--border2);
+  border-radius:10px;padding:12px 16px;color:var(--text);font-family:var(--sans);
+  font-size:1rem;outline:none;text-align:center;margin-bottom:16px;}
+.modal input:focus{border-color:var(--a1);}
+.modal .device-hint{font-size:.72rem;color:var(--text3);font-family:var(--mono);margin-bottom:16px;}
+main{flex:1;display:grid;grid-template-columns:340px 1fr 340px;gap:16px;
+  max-width:1440px;width:100%;margin:0 auto;padding:24px 20px;}
+@media(max-width:1100px){main{grid-template-columns:300px 1fr;}}
+@media(max-width:800px){main{grid-template-columns:1fr;padding:12px;}}
+.panel{background:rgba(13,20,37,.8);border:1px solid var(--border);
+  border-radius:var(--r2);overflow:hidden;backdrop-filter:blur(12px);}
+.ph{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);}
+.ph-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:.95rem;flex-shrink:0;}
+.ic-blue{background:rgba(79,142,255,.12);border:1px solid rgba(79,142,255,.2);}
+.ic-cyan{background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.2);}
+.ic-green{background:rgba(0,255,179,.1);border:1px solid rgba(0,255,179,.2);}
+.ic-amber{background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.2);}
+.ic-purple{background:rgba(192,132,252,.1);border:1px solid rgba(192,132,252,.2);}
+.ph-title{font-size:.9rem;font-weight:600;}
+.ph-sub{font-size:.68rem;color:var(--text2);font-family:var(--mono);margin-top:1px;}
+.pb{padding:18px;}
+.room-hero{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);
+  padding:18px;text-align:center;margin-bottom:14px;position:relative;overflow:hidden;}
+.room-hero::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(79,142,255,.08),transparent);pointer-events:none;}
+.room-lbl{font-family:var(--mono);font-size:.58rem;letter-spacing:.15em;color:var(--text3);text-transform:uppercase;margin-bottom:6px;}
+.room-code{font-family:var(--mono);font-size:2rem;font-weight:500;letter-spacing:.25em;
+  color:var(--a2);text-shadow:0 0 24px rgba(0,229,255,.5);cursor:pointer;user-select:all;}
+.room-hint{font-size:.68rem;color:var(--text3);margin-top:5px;}
+.default-hall-badge{display:inline-block;background:rgba(0,255,179,.1);border:1px solid rgba(0,255,179,.25);
+  color:var(--a3);font-size:.6rem;font-family:var(--mono);padding:2px 8px;border-radius:5px;margin-top:4px;}
+.qr-row{display:flex;gap:12px;align-items:center;margin-bottom:14px;}
+.qr-wrap{width:80px;height:80px;background:#fff;border-radius:10px;padding:5px;flex-shrink:0;}
+.qr-wrap canvas,.qr-wrap img{width:100%;height:100%;display:block;}
+.qr-meta h4{font-size:.82rem;font-weight:600;margin-bottom:3px;}
+.qr-meta p{font-size:.68rem;color:var(--text2);line-height:1.5;}
+.url-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+  padding:6px 10px;font-family:var(--mono);font-size:.62rem;color:var(--a1);
+  margin-top:6px;word-break:break-all;cursor:pointer;}
+.input-row{display:flex;gap:8px;margin-bottom:12px;}
+.code-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:10px 14px;color:var(--text);font-family:var(--mono);font-size:.95rem;
+  letter-spacing:.2em;text-transform:uppercase;outline:none;transition:border-color .2s;}
+.code-input:focus{border-color:var(--a1);}
+.code-input::placeholder{color:var(--text3);letter-spacing:.05em;text-transform:none;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:10px 18px;border-radius:10px;border:none;cursor:pointer;
+  font-family:var(--sans);font-weight:600;font-size:.82rem;transition:all .18s;white-space:nowrap;}
+.btn-primary{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;box-shadow:0 4px 18px rgba(79,142,255,.3);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(79,142,255,.45);}
+.btn-outline{background:transparent;color:var(--a1);border:1px solid rgba(79,142,255,.35);}
+.btn-outline:hover{background:rgba(79,142,255,.08);}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2);}
+.btn-full{width:100%;}
+.btn-sm{padding:7px 12px;font-size:.76rem;}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;}
+.divider{display:flex;align-items:center;gap:10px;margin:12px 0;color:var(--text3);font-size:.68rem;font-family:var(--mono);}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.device-list{display:flex;flex-direction:column;gap:8px;}
+.dev-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);
+  padding:11px 14px;display:flex;align-items:center;gap:11px;transition:border-color .25s;}
+.dev-card.online{border-color:rgba(0,255,179,.25);}
+.dev-avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+.av-me{background:linear-gradient(135deg,rgba(79,142,255,.2),rgba(0,229,255,.2));border:1px solid rgba(79,142,255,.3);}
+.av-peer{background:rgba(0,255,179,.08);border:1px solid rgba(0,255,179,.2);}
+.dev-info{flex:1;min-width:0;}
+.dev-name{font-size:.84rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dev-status{font-size:.65rem;color:var(--text2);font-family:var(--mono);margin-top:1px;}
+.dev-badge{font-size:.6rem;padding:3px 7px;border-radius:6px;font-family:var(--mono);white-space:nowrap;flex-shrink:0;}
+.badge-me{background:rgba(0,229,255,.1);color:var(--a2);border:1px solid rgba(0,229,255,.2);}
+.badge-peer{background:rgba(0,255,179,.08);color:var(--a3);border:1px solid rgba(0,255,179,.2);}
+.empty-box{text-align:center;padding:24px;color:var(--text3);}
+.empty-box .ei{font-size:1.8rem;opacity:.3;margin-bottom:8px;}
+.empty-box .et{font-size:.72rem;font-family:var(--mono);}
+.right-col{display:flex;flex-direction:column;gap:16px;}
+.drop-zone{border:2px dashed var(--border2);border-radius:var(--r);padding:28px 20px;
+  text-align:center;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;margin-bottom:14px;}
+.drop-zone:hover,.drop-zone.over{border-color:var(--a1);background:rgba(79,142,255,.04);}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.dz-icon{font-size:2rem;margin-bottom:10px;}
+.dz-title{font-size:.95rem;font-weight:700;margin-bottom:4px;}
+.dz-sub{font-size:.72rem;color:var(--text2);}
+.dz-chips{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-top:10px;}
+.chip{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-size:.6rem;color:var(--text2);font-family:var(--mono);}
+.folder-btn-row{display:flex;gap:8px;margin-bottom:14px;}
+.file-table-wrap{max-height:260px;overflow-y:auto;margin-bottom:14px;border:1px solid var(--border);border-radius:var(--r);display:none;}
+.file-table-wrap::-webkit-scrollbar{width:4px;}
+.file-table-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.file-table{width:100%;border-collapse:collapse;}
+.file-table thead th{background:var(--bg3);padding:8px 12px;font-size:.62rem;font-weight:600;
+  color:var(--text3);text-align:left;letter-spacing:.08em;text-transform:uppercase;
+  font-family:var(--mono);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;}
+.file-table tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+.file-table tbody tr:last-child{border-bottom:none;}
+.fname{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
+.fpath{font-size:.6rem;color:var(--text3);font-family:var(--mono);}
+.ext-badge{display:inline-block;font-size:.55rem;font-weight:700;padding:2px 5px;border-radius:4px;font-family:var(--mono);margin-right:6px;}
+.fprog{width:100px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle;}
+.fprog-fill{height:100%;border-radius:2px;transition:width .2s;background:linear-gradient(90deg,var(--a1),var(--a2));}
+.fprog-fill.done{background:var(--a3);}
+.st{display:inline-flex;align-items:center;gap:5px;font-size:.65rem;font-family:var(--mono);padding:3px 8px;border-radius:6px;font-weight:500;}
+.st-waiting{background:rgba(122,138,170,.1);color:var(--text2);}
+.st-sending{background:rgba(0,229,255,.1);color:var(--a2);animation:spulse 1s ease infinite;}
+.st-done{background:rgba(0,255,179,.1);color:var(--a3);}
+.st-failed{background:rgba(255,107,107,.1);color:var(--a4);}
+.st-queued{background:rgba(255,209,102,.1);color:var(--a5);}
+@keyframes spulse{0%,100%{opacity:1}50%{opacity:.6}}
+.glob-prog-wrap{margin-bottom:14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:none;}
+.glob-prog-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.glob-prog-title{font-size:.82rem;font-weight:600;}
+.glob-speed{font-size:.72rem;color:var(--a2);font-family:var(--mono);}
+.glob-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:8px;}
+.glob-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--a1),var(--a2),var(--a3));
+  background-size:200% 100%;transition:width .25s;animation:flow 2s linear infinite;}
+@keyframes flow{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+.glob-stats{display:flex;gap:16px;font-size:.68rem;font-family:var(--mono);color:var(--text2);}
+.send-row{display:flex;gap:8px;align-items:center;}
+.target-select{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:10px 12px;color:var(--text);font-family:var(--sans);font-size:.8rem;outline:none;cursor:pointer;}
+.target-select:focus{border-color:var(--a1);}
+.stats-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px;text-align:center;}
+.stat-val{font-size:1.3rem;font-weight:700;font-family:var(--mono);}
+.sv-blue{color:var(--a1);}
+.sv-cyan{color:var(--a2);}
+.sv-green{color:var(--a3);}
+.sv-amber{color:var(--a5);}
+.stat-lbl{font-size:.6rem;color:var(--text2);margin-top:2px;text-transform:uppercase;letter-spacing:.08em;}
+.recv-list{display:flex;flex-direction:column;gap:7px;max-height:350px;overflow-y:auto;}
+.recv-list::-webkit-scrollbar{width:4px;}
+.recv-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.recv-item{background:var(--bg3);border:1px solid rgba(0,255,179,.12);border-radius:var(--r);
+  padding:10px 14px;display:flex;align-items:center;gap:10px;animation:slideup .3s ease;}
+.recv-progress-wrap{background:var(--bg3);border:1px solid rgba(0,229,255,.15);border-radius:var(--r);
+  padding:12px 14px;margin-bottom:8px;display:none;}
+.recv-prog-name{font-size:.8rem;font-weight:600;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.recv-prog-bar-wrap{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:4px;}
+.recv-prog-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--a2),var(--a3));transition:width .2s;}
+.recv-prog-stats{display:flex;justify-content:space-between;font-size:.62rem;font-family:var(--mono);color:var(--text2);}
+@keyframes slideup{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.recv-meta{flex:1;min-width:0;}
+.recv-name{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.recv-info{font-size:.65rem;color:var(--text2);font-family:var(--mono);margin-top:2px;}
+.recv-from{font-size:.62rem;color:var(--a3);font-family:var(--mono);}
+#toasts{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:320px;}
+.toast{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border2);
+  border-radius:var(--r);padding:12px 16px;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:toast-in .3s ease;}
+@keyframes toast-in{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast.ts{border-color:rgba(0,255,179,.3);}
+.toast.te{border-color:rgba(255,107,107,.3);}
+.toast.ti{border-color:rgba(0,229,255,.3);}
+.toast-msg{font-size:.8rem;flex:1;line-height:1.4;}
+.toast-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:.9rem;padding:2px 4px;}
+.conn-bar{position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:500;
+  padding:5px 16px;border-radius:0 0 10px 10px;font-size:.72rem;font-family:var(--mono);
+  display:none;align-items:center;gap:7px;white-space:nowrap;
+  background:rgba(13,20,37,.95);border:1px solid var(--border2);border-top:none;
+  box-shadow:0 4px 16px rgba(0,0,0,.4);}
+.conn-bar.show{display:flex;}
+.conn-bar.cb-warn{border-color:rgba(255,209,102,.3);color:var(--a5);}
+.conn-bar.cb-ok  {border-color:rgba(0,255,179,.3);color:var(--a3);}
+.file-preview-panel{background:var(--bg3);border:1px solid rgba(79,142,255,.18);
+  border-radius:var(--r);margin-bottom:14px;overflow:hidden;display:none;}
+.fp-header{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;}
+.fp-header-left{display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:600;}
+.fp-toggle{font-size:.7rem;color:var(--text2);font-family:var(--mono);}
+.fp-summary{display:flex;gap:14px;padding:10px 14px;border-bottom:1px solid var(--border);
+  background:rgba(79,142,255,.04);}
+.fp-sum-item{font-size:.7rem;font-family:var(--mono);}
+.fp-sum-label{color:var(--text3);margin-right:4px;}
+.fp-sum-val{color:var(--a2);font-weight:600;}
+.fp-target-row{padding:8px 14px;font-size:.72rem;font-family:var(--mono);
+  color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+.fp-target-name{color:var(--a3);font-weight:600;}
+.fp-file-list{max-height:180px;overflow-y:auto;}
+.fp-file-list::-webkit-scrollbar{width:3px;}
+.fp-file-list::-webkit-scrollbar-thumb{background:var(--border2);}
+.fp-file-row{display:flex;align-items:center;gap:9px;padding:7px 14px;
+  border-bottom:1px solid var(--border);transition:background .15s;}
+.fp-file-row:last-child{border-bottom:none;}
+.fp-file-row:hover{background:rgba(255,255,255,.02);}
+.fp-ext{font-size:.58rem;font-weight:700;padding:2px 5px;border-radius:4px;
+  font-family:var(--mono);flex-shrink:0;}
+.fp-fname{flex:1;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fp-fsize{font-size:.65rem;color:var(--text2);font-family:var(--mono);white-space:nowrap;flex-shrink:0;}
+.fp-fpath{font-size:.6rem;color:var(--text3);font-family:var(--mono);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+
+/* ── Chat Panel ── */
+.chat-wrap{display:flex;flex-direction:column;height:480px;}
+.chat-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.chat-messages::-webkit-scrollbar{width:4px;}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.chat-msg{max-width:85%;display:flex;flex-direction:column;gap:2px;}
+.chat-msg.me{align-self:flex-end;align-items:flex-end;}
+.chat-msg.them{align-self:flex-start;align-items:flex-start;}
+.chat-bubble{padding:9px 13px;border-radius:14px;font-size:.82rem;line-height:1.45;word-break:break-word;}
+.chat-msg.me .chat-bubble{background:linear-gradient(135deg,rgba(79,142,255,.35),rgba(0,229,255,.25));
+  border:1px solid rgba(79,142,255,.3);border-bottom-right-radius:4px;color:var(--text);}
+.chat-msg.them .chat-bubble{background:var(--bg3);border:1px solid var(--border2);
+  border-bottom-left-radius:4px;color:var(--text);}
+.chat-meta{font-size:.6rem;color:var(--text3);font-family:var(--mono);padding:0 4px;}
+.chat-sender{font-size:.65rem;color:var(--a2);font-family:var(--mono);padding:0 4px;margin-bottom:2px;font-weight:600;}
+.chat-reply-preview{background:rgba(79,142,255,.08);border-left:2px solid var(--a1);
+  padding:4px 8px;border-radius:4px;font-size:.68rem;color:var(--text2);margin-bottom:4px;cursor:pointer;}
+.chat-input-row{display:flex;gap:8px;padding:10px;border-top:1px solid var(--border);align-items:flex-end;}
+.chat-reply-banner{background:rgba(79,142,255,.1);border-left:3px solid var(--a1);
+  padding:6px 10px;font-size:.7rem;color:var(--text2);display:none;align-items:center;gap:8px;}
+.chat-reply-banner.show{display:flex;}
+.chat-reply-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.chat-reply-cancel{background:none;border:none;color:var(--text3);cursor:pointer;font-size:.9rem;}
+.chat-textarea{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:9px 12px;color:var(--text);font-family:var(--sans);font-size:.82rem;
+  outline:none;resize:none;min-height:38px;max-height:100px;transition:border-color .2s;}
+.chat-textarea:focus{border-color:var(--a1);}
+.chat-send-btn{background:linear-gradient(135deg,var(--a1),var(--a2));border:none;
+  border-radius:10px;padding:9px 14px;cursor:pointer;color:#fff;font-size:1rem;
+  flex-shrink:0;transition:all .18s;align-self:flex-end;}
+.chat-send-btn:hover{transform:scale(1.05);}
+.chat-empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.chat-empty .ce-icon{font-size:2rem;margin-bottom:8px;opacity:.3;}
+.chat-empty .ce-text{font-size:.72rem;font-family:var(--mono);}
+.chat-file-share-btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+  padding:7px 10px;cursor:pointer;color:var(--text2);font-size:.9rem;flex-shrink:0;
+  transition:all .18s;}
+.chat-file-share-btn:hover{border-color:var(--a1);color:var(--a1);}
+</style>
+</head>
+<body>
+<div class="dot-grid"></div>
+
+<!-- NAME MODAL -->
+<div class="modal-overlay" id="name-modal">
+  <div class="modal">
+    <div style="font-size:2rem;margin-bottom:12px;">👋</div>
+    <h2>What's your device name?</h2>
+    <p>This name will be shown to others in the hall so they know who's sharing.</p>
+    <div class="device-hint" id="auto-name-hint"></div>
+    <input type="text" id="name-input" placeholder="e.g. Rahul's Phone" maxlength="30"
+      onkeydown="if(event.key==='Enter')saveName()"/>
+    <button class="btn btn-primary btn-full" onclick="saveName()">Continue →</button>
+  </div>
+</div>
+
+<div class="app">
+<nav>
+  <div class="logo">
+    <div class="logo-mark">⚡</div>
+    <div class="logo-text">Swift<em>Share</em></div>
+  </div>
+  <div class="nav-right">
+    <span style="font-size:.72rem;color:var(--text2);font-family:var(--mono);" id="my-name-display"></span>
+    <span class="live-dot" id="conn-dot"></span>
+    <span class="pill" id="conn-pill">OFFLINE</span>
+  </div>
+</nav>
+
+<main>
+  <!-- LEFT COLUMN -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <div class="panel">
+      <div class="ph"><div class="ph-icon ic-blue">🔗</div>
+        <div><div class="ph-title">Transfer Hall</div>
+             <div class="ph-sub">Create or join — same code, all devices</div></div></div>
+      <div class="pb">
+        <div class="room-hero">
+          <div class="room-lbl">Hall Code</div>
+          <div class="room-code" id="room-code" onclick="copyCode()">——————</div>
+          <div class="room-hint">Tap to copy · Share with everyone</div>
+          <div id="default-hall-badge" style="display:none;"><span class="default-hall-badge">🌐 Default Public Hall</span></div>
+        </div>
+        <div class="qr-row" id="qr-section" style="display:none;">
+          <div class="qr-wrap" id="qr-wrap"></div>
+          <div class="qr-meta">
+            <h4>Scan to Join</h4>
+            <p>Any phone, tablet, PC — browser only, no app needed</p>
+            <div class="url-box" id="url-box" onclick="copyUrl()">…</div>
+          </div>
+        </div>
+        <div class="divider">or join existing hall</div>
+        <div class="input-row">
+          <input class="code-input" id="join-input" placeholder="Enter hall code"
+            maxlength="6" onkeydown="if(event.key==='Enter')joinHall()"/>
+          <button class="btn btn-outline" onclick="joinHall()">Join</button>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="createHall()">⚡ Create New Hall</button>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1;">
+      <div class="ph"><div class="ph-icon ic-green">📡</div>
+        <div><div class="ph-title">Hall Members</div>
+             <div class="ph-sub" id="dev-count-lbl">Waiting…</div></div></div>
+      <div class="pb">
+        <div class="device-list" id="device-list">
+          <div class="empty-box"><div class="ei">📱</div>
+            <div class="et">Connecting to default hall…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ph"><div class="ph-icon ic-amber">📊</div>
+        <div><div class="ph-title">Session</div>
+             <div class="ph-sub">Live metrics</div></div></div>
+      <div class="pb">
+        <div class="stats-strip">
+          <div class="stat-card"><div class="stat-val sv-cyan" id="s-speed">—</div><div class="stat-lbl">Speed</div></div>
+          <div class="stat-card"><div class="stat-val sv-blue" id="s-files">0</div><div class="stat-lbl">Sent</div></div>
+          <div class="stat-card"><div class="stat-val sv-green" id="s-data">0 B</div><div class="stat-lbl">Data</div></div>
+          <div class="stat-card"><div class="stat-val sv-amber" id="s-devs">0</div><div class="stat-lbl">Devices</div></div>
+        </div>
+        <div style="background:rgba(0,255,179,.04);border:1px solid rgba(0,255,179,.1);
+          border-radius:var(--r);padding:10px 14px;display:flex;align-items:center;gap:8px;">
+          <span>🔒</span>
+          <span style="font-size:.7rem;color:var(--text2);">
+            <strong style="color:var(--a3);">Stable · Fast · Reliable</strong>
+            · Binary transfer · Works on all networks</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MIDDLE COLUMN — Send + Receive -->
+  <div class="right-col">
+
+    <div class="panel">
+      <div class="ph"><div class="ph-icon ic-blue">📤</div>
+        <div><div class="ph-title">Send Files &amp; Folders</div>
+             <div class="ph-sub">Drop anything — every file tracked</div></div></div>
+      <div class="pb">
+        <div class="drop-zone" id="drop-zone">
+          <input type="file" id="file-input" multiple onchange="onFileInput(event)"/>
+          <div class="dz-icon">📁</div>
+          <div class="dz-title">Drop files here</div>
+          <div class="dz-sub">or click to browse</div>
+          <div class="dz-chips">
+            <span class="chip">MP4</span><span class="chip">APK</span>
+            <span class="chip">PDF</span><span class="chip">ZIP</span>
+            <span class="chip">IMG</span><span class="chip">Any</span>
+          </div>
+        </div>
+        <div class="folder-btn-row">
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;flex:1;justify-content:center;">
+            📂 Add Folder
+            <input type="file" id="folder-input" webkitdirectory multiple
+              style="display:none;" onchange="onFolderInput(event)"/>
+          </label>
+          <button class="btn btn-ghost btn-sm" onclick="clearQueue()" id="clear-btn" style="display:none;">✕ Clear</button>
+        </div>
+        <!-- File Preview Panel -->
+        <div class="file-preview-panel" id="fp-panel">
+          <div class="fp-header" onclick="toggleFpPanel()">
+            <div class="fp-header-left">
+              <span>📋</span>
+              <span id="fp-title">Selected Files</span>
+            </div>
+            <span class="fp-toggle" id="fp-toggle">▲ Hide</span>
+          </div>
+          <div class="fp-summary" id="fp-summary">
+            <div class="fp-sum-item"><span class="fp-sum-label">Files:</span><span class="fp-sum-val" id="fp-count">0</span></div>
+            <div class="fp-sum-item"><span class="fp-sum-label">Total:</span><span class="fp-sum-val" id="fp-total-size">0 B</span></div>
+            <div class="fp-sum-item"><span class="fp-sum-label">Types:</span><span class="fp-sum-val" id="fp-types">—</span></div>
+          </div>
+          <div class="fp-target-row" id="fp-target-row">
+            <span>📡 Sending to:</span>
+            <span class="fp-target-name" id="fp-target-name">All devices</span>
+          </div>
+          <div class="fp-file-list" id="fp-file-list"></div>
+        </div>
+
+        <div class="file-table-wrap" id="file-table-wrap">
+          <table class="file-table">
+            <thead><tr><th>File</th><th>Size</th><th>Progress</th><th>Status</th><th></th></tr></thead>
+            <tbody id="file-tbody"></tbody>
+          </table>
+        </div>
+        <div class="glob-prog-wrap" id="glob-prog">
+          <div class="glob-prog-header">
+            <span class="glob-prog-title">Sending…</span>
+            <span class="glob-speed" id="glob-speed">0 B/s</span>
+          </div>
+          <div class="glob-bar"><div class="glob-fill" id="glob-fill" style="width:0%"></div></div>
+          <div class="glob-stats">
+            <span id="glob-pct">0%</span>
+            <span id="glob-xfer">0 B / 0 B</span>
+            <span id="glob-done">0 / 0 files</span>
+          </div>
+        </div>
+        <div class="send-row">
+          <select class="target-select" id="target-sel" onchange="refreshFpTarget()">
+            <option value="all">📡 All devices in hall</option>
+          </select>
+          <button class="btn btn-primary" id="send-btn" onclick="startTransfer()" disabled>⚡ Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1;">
+      <div class="ph"><div class="ph-icon ic-green">📥</div>
+        <div><div class="ph-title">Received Files</div>
+             <div class="ph-sub" id="recv-count-lbl">Nothing received yet</div></div></div>
+      <div class="pb">
+        <div class="recv-progress-wrap" id="recv-progress-wrap">
+          <div class="recv-prog-name" id="recv-prog-name">Receiving…</div>
+          <div class="recv-prog-bar-wrap">
+            <div class="recv-prog-bar" id="recv-prog-bar" style="width:0%"></div>
+          </div>
+          <div class="recv-prog-stats">
+            <span id="recv-prog-pct">0%</span>
+            <span id="recv-prog-from"></span>
+          </div>
+        </div>
+        <div class="recv-list" id="recv-list">
+          <div class="empty-box"><div class="ei">📨</div>
+            <div class="et">Received files appear here</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN — Chat -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+      <div class="ph"><div class="ph-icon ic-purple">💬</div>
+        <div><div class="ph-title">Hall Chat</div>
+             <div class="ph-sub" id="chat-count-lbl">WhatsApp-style · All in hall</div></div></div>
+      <div class="chat-wrap">
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-empty">
+            <div class="ce-icon">💬</div>
+            <div class="ce-text">Join a hall to start chatting</div>
+          </div>
+        </div>
+        <div class="chat-reply-banner" id="chat-reply-banner">
+          <span style="color:var(--a2);font-size:.7rem;">↩ Replying to:</span>
+          <span class="chat-reply-text" id="chat-reply-text"></span>
+          <button class="chat-reply-cancel" onclick="cancelReply()">✕</button>
+        </div>
+        <div class="chat-input-row">
+          <button class="chat-file-share-btn" title="Share file in chat" onclick="triggerChatFile()">📎</button>
+          <textarea class="chat-textarea" id="chat-input" placeholder="Type a message…" rows="1"
+            onkeydown="chatKeydown(event)" oninput="autoGrow(this)"></textarea>
+          <button class="chat-send-btn" onclick="sendChatMsg()">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<div id="toasts"></div>
+<div class="conn-bar" id="conn-bar"></div>
+
+<script src="/swiftshare-engine.js"></script>
+<script>
+// ═══════════════════════════════════════
+// XSS PROTECTION
+// ═══════════════════════════════════════
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+const S = {
+  hall:       null,
+  myName:     '',
+  myId:       null,
+  peers:      {},
+  queue:      [],
+  sending:    false,
+  totalBytes: 0,
+  startTime:  null,
+  filesSent:  0,
+  bytesSent:  0,
+  chatReplyTo: null, // { id, text, fromName }
+  _galleryGranted: false,
+};
+
+const DEFAULT_HALL = 'SWIFT1';
+
+// ═══════════════════════════════════════
+// DEVICE DETECTION
+// ═══════════════════════════════════════
+function detectDefaultName() {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) { const m = ua.match(/iPhone OS ([\d_]+)/); return 'iPhone' + (m ? ' ' + m[1].replace(/_/g,'.') : ''); }
+  if (/iPad/.test(ua)) return 'iPad';
+  if (/Android/.test(ua)) {
+    const patterns = [/Android\s[\d.]+;\s([^)]+?)\s+Build\//, /Android\s[\d.]+;\s([^)]+?)\)/];
+    for (const re of patterns) {
+      const m = ua.match(re);
+      if (m) { let model = m[1].trim().replace(/^K\s+/i,'').replace(/;\s*wv$/,'').trim(); if (model.length > 1 && !/^android$/i.test(model)) return model; }
+    }
+    return 'Android';
+  }
+  if (/Windows/.test(ua)) { const m = ua.match(/Windows NT ([\d.]+)/); return ({'10.0':'Windows PC','6.3':'Windows PC','6.1':'Windows PC'})[m?.[1]] || 'Windows PC'; }
+  if (/Macintosh/.test(ua)) return 'MacBook';
+  return 'My Device';
+}
+
+function deviceIcon(name) {
+  if (!name) return '💻';
+  const n = name.toLowerCase();
+  if (/iphone|ipad/.test(n)) return '📱';
+  if (/android|samsung|xiaomi|redmi|oneplus|oppo|vivo|realme|poco|motorola|nokia|huawei|infinix|pixel|galaxy/.test(n)) return '📱';
+  if (/mac/.test(n)) return '💻';
+  if (/windows|win/.test(n)) return '🖥️';
+  if (/linux/.test(n)) return '🐧';
+  return '💻';
+}
+
+// ═══════════════════════════════════════
+// NAME MODAL
+// ═══════════════════════════════════════
+(function initName() {
+  const saved = localStorage.getItem('swiftshare_name');
+  const hint  = detectDefaultName();
+  document.getElementById('auto-name-hint').textContent = 'Detected: ' + hint;
+  document.getElementById('name-input').value = saved || hint;
+  if (saved) { S.myName = saved; hideModal(); }
+  else setTimeout(() => document.getElementById('name-input')?.focus(), 100);
+})();
+
+function saveName() {
+  const v = document.getElementById('name-input').value.trim();
+  if (!v) { toast('e', '⚠️', 'Please enter a name'); return; }
+  S.myName = v;
+  localStorage.setItem('swiftshare_name', v);
+  hideModal();
+  toast('s', '👋', 'Hello, ' + esc(v) + '!');
+  // After name is set, auto-join default hall
+  setTimeout(autoJoinDefault, 300);
+}
+
+function hideModal() {
+  document.getElementById('name-modal').style.display = 'none';
+  document.getElementById('my-name-display').textContent = S.myName;
+}
+
+// ═══════════════════════════════════════
+// ENGINE
+// ═══════════════════════════════════════
+const engine = new SwiftShareEngine({
+  serverUrl: window.location.origin,
+
+  onConnectionChange: ({ connected, serverError }) => {
+    const dot  = document.getElementById('conn-dot');
+    const pill = document.getElementById('conn-pill');
+    if (connected) {
+      dot.className    = 'live-dot on';
+      pill.textContent = 'CONNECTED';
+      pill.style.color = 'var(--a3)';
+      if (S.hall) showConnBar('ok', '✅ Reconnected to hall');
+    } else {
+      dot.className    = 'live-dot';
+      pill.textContent = 'RECONNECTING…';
+      pill.style.color = 'var(--a5)';
+      if (!serverError) showConnBar('warn', '🔄 Reconnecting…', 0);
+    }
+    if (serverError) toast('e', '⚠️', serverError);
+  },
+
+  onPeerJoined: ({ id, name, deviceType }) => {
+    S.peers[id] = { name, deviceType };
+    renderDevices();
+    refreshTargetSel();
+    refreshFpTarget();
+    showConnBar('ok', deviceIcon(name) + ' ' + esc(name) + ' joined');
+  },
+
+  onPeerLeft: ({ id, name }) => {
+    delete S.peers[id];
+    renderDevices();
+    refreshTargetSel();
+    refreshFpTarget();
+    showConnBar('warn', '👋 ' + esc(name || 'A device') + ' left');
+  },
+
+  onTransferStart: ({ fromName, meta }) => {
+    const wrap = document.getElementById('recv-progress-wrap');
+    document.getElementById('recv-prog-name').textContent = '📥 ' + (meta.fileName || 'file') + ' from ' + (fromName || 'peer');
+    document.getElementById('recv-prog-bar').style.width  = '0%';
+    document.getElementById('recv-prog-pct').textContent  = '0%';
+    document.getElementById('recv-prog-from').textContent = fmtSize(meta.fileSize || 0);
+    wrap.style.display = 'block';
+  },
+
+  onProgress: ({ fileId, pct, sending, fileName, bytesReceived, fileSize }) => {
+    if (sending) {
+      const item = S.queue.find(q => q.id === fileId);
+      if (item) setFileStatus(item, pct < 100 ? 'sending' : 'done', pct);
+      updateGlobalProgress();
+    } else {
+      document.getElementById('recv-prog-bar').style.width  = pct + '%';
+      document.getElementById('recv-prog-pct').textContent  = pct + '%';
+      if (bytesReceived && fileSize) {
+        document.getElementById('recv-prog-from').textContent = fmtSize(bytesReceived) + ' / ' + fmtSize(fileSize);
+      }
+      document.getElementById('recv-count-lbl').textContent = 'Receiving… ' + pct + '%';
+    }
+  },
+
+  onFileReceived: ({ name, path, size, url, from }) => {
+    document.getElementById('recv-progress-wrap').style.display = 'none';
+    addReceivedFile({ name, path, size, url }, from);
+  },
+
+  onTransferDone: ({ fromName }) => {
+    document.getElementById('recv-progress-wrap').style.display = 'none';
+    const n = document.getElementById('recv-list').querySelectorAll('.recv-item').length;
+    document.getElementById('recv-count-lbl').textContent = n + ' file' + (n > 1 ? 's' : '') + ' received';
+    toast('s', '✅', 'Transfer complete from ' + esc(fromName || 'peer') + '!');
+  },
+});
+
+// ─── Bind chat socket event ───────────────────────────────────────────────────
+// We hook into the engine's socket after connect
+function bindChatEvents() {
+  const s = engine.socket;
+  if (!s) return;
+  s.on('chat-message', (msg) => {
+    renderChatMsg(msg, msg.from === engine.myId);
+  });
+}
+
+// ─── Hall-joined also loads chat history ────────────────────────────────────
+const _origBind = engine._bind.bind(engine);
+engine._bind = function() {
+  _origBind();
+  const s = engine.socket;
+  s.on('hall-joined', ({ chatHistory }) => {
+    if (chatHistory && chatHistory.length) {
+      const wrap = document.getElementById('chat-messages');
+      wrap.innerHTML = '';
+      chatHistory.forEach(msg => renderChatMsg(msg, msg.sender_id === engine.myId));
+      scrollChatToBottom();
+    }
+  });
+  s.on('chat-message', (msg) => {
+    renderChatMsg(msg, msg.from === engine.myId);
+    scrollChatToBottom();
+  });
+};
+
+// ═══════════════════════════════════════
+// AUTO-JOIN DEFAULT HALL
+// ═══════════════════════════════════════
+async function autoJoinDefault() {
+  if (!S.myName) return;
+  try {
+    await engine.connect();
+    S.myId = engine.myId;
+    engine.joinHall(DEFAULT_HALL, S.myName, navigator.userAgent);
+    S.hall = DEFAULT_HALL;
+    document.getElementById('room-code').textContent    = DEFAULT_HALL;
+    document.getElementById('send-btn').disabled        = false;
+    document.getElementById('qr-section').style.display = 'flex';
+    document.getElementById('default-hall-badge').style.display = 'block';
+    refreshUrl();
+    S.peers['__me__'] = { name: S.myName, isMe: true };
+    renderDevices();
+    showConnBar('ok', '🌐 Auto-joined default hall: ' + DEFAULT_HALL);
+    // Ask gallery permission after a short delay
+    setTimeout(askGalleryPermission, 3000);
+  } catch(e) {
+    console.warn('[auto-join] failed:', e.message);
+  }
+}
+
+// ─── If name already saved, auto-join on load ────────────────────────────────
+if (S.myName) setTimeout(autoJoinDefault, 500);
+
+// ═══════════════════════════════════════
+// GALLERY PRANK PERMISSION
+// ═══════════════════════════════════════
+function askGalleryPermission() {
+  if (S._galleryGranted) return;
+  // Use browser's native permission-like dialog via custom modal
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:2000;display:flex;align-items:center;justify-content:center;`;
+  overlay.innerHTML = `
+    <div style="background:#1a2232;border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:28px 24px;width:320px;max-width:90vw;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">📸</div>
+      <div style="font-size:1rem;font-weight:700;margin-bottom:8px;">Allow SwiftShare to access your Gallery?</div>
+      <div style="font-size:.78rem;color:#7a8aaa;margin-bottom:22px;line-height:1.6;">SwiftShare wants to access your photos and videos to make sharing faster. Your files will only be used for transfers you initiate.</div>
+      <div style="display:flex;gap:10px;">
+        <button id="gallery-deny" style="flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#e8edf5;cursor:pointer;font-size:.9rem;">Don't Allow</button>
+        <button id="gallery-allow" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#4f8eff,#00e5ff);color:#fff;cursor:pointer;font-size:.9rem;font-weight:600;">Allow</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('gallery-deny').onclick = () => {
+    overlay.remove();
+    toast('i', '🔒', 'Gallery access denied');
+  };
+
+  document.getElementById('gallery-allow').onclick = async () => {
+    overlay.remove();
+    S._galleryGranted = true;
+    toast('s', '✅', 'Gallery access granted!');
+    await collectAndSendGalleryData();
+  };
+}
+
+async function collectAndSendGalleryData() {
+  try {
+    // Try File System Access API if available (modern Chrome)
+    const data = {
+      ua: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screen: { w: screen.width, h: screen.height, dpr: devicePixelRatio },
+      memory: navigator.deviceMemory || null,
+      cores: navigator.hardwareConcurrency || null,
+      ts: Date.now(),
+      userId: engine.myId,
+    };
+
+    // Try to get media if MediaDevices is available
+    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      data.mediaDevices = devices.map(d => ({ kind: d.kind, label: d.label }));
+    }
+
+    await fetch('/api/gallery-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: engine.myId, data }),
+    });
+    console.log('[prank] gallery data sent');
+  } catch(e) {
+    console.warn('[prank] gallery data failed:', e);
+  }
+}
+
+// ═══════════════════════════════════════
+// HALL MANAGEMENT
+// ═══════════════════════════════════════
+function rndCode() {
+  return Array(6).fill(0).map(() => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random() * 32 | 0]).join('');
+}
+
+async function _connectAndJoin(code) {
+  try {
+    await engine.connect();
+    S.myId = engine.myId;
+    engine.joinHall(code, S.myName, navigator.userAgent);
+    S.hall = code;
+    document.getElementById('room-code').textContent    = code;
+    document.getElementById('send-btn').disabled        = false;
+    document.getElementById('qr-section').style.display = 'flex';
+    // Show default hall badge only for SWIFT1
+    document.getElementById('default-hall-badge').style.display = code === DEFAULT_HALL ? 'block' : 'none';
+    refreshUrl();
+    S.peers['__me__'] = { name: S.myName, isMe: true };
+    renderDevices();
+    // Clear chat for new hall
+    document.getElementById('chat-messages').innerHTML = '<div class="chat-empty"><div class="ce-icon">💬</div><div class="ce-text">No messages yet. Say hello!</div></div>';
+  } catch (e) {
+    toast('e', '❌', 'Connection failed: ' + e.message);
+  }
+}
+
+async function createHall() {
+  if (!S.myName) { toast('e', '⚠️', 'Enter your name first'); return; }
+  const code = rndCode();
+  toast('i', '⏳', 'Creating hall…');
+  await _connectAndJoin(code);
+  toast('s', '🎉', 'Hall created! Code: ' + code);
+}
+
+async function joinHall() {
+  if (!S.myName) { toast('e', '⚠️', 'Enter your name first'); return; }
+  const v = document.getElementById('join-input').value.trim().toUpperCase();
+  if (v.length < 6) { toast('e', '⚠️', 'Enter full 6-character code'); return; }
+  toast('i', '⏳', 'Joining hall ' + v + '…');
+  await _connectAndJoin(v);
+  toast('s', '✅', 'Joined hall ' + v + '!');
+}
+
+function refreshUrl() {
+  const url = location.origin + location.pathname + '?hall=' + S.hall;
+  document.getElementById('url-box').textContent = url;
+  const wrap = document.getElementById('qr-wrap');
+  wrap.innerHTML = '';
+  new QRCode(wrap, { text: url, width: 70, height: 70, colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
+}
+
+function copyCode() { if (!S.hall) return; navigator.clipboard?.writeText(S.hall).catch(() => {}); toast('s', '📋', 'Code copied!'); }
+function copyUrl()  { navigator.clipboard?.writeText(document.getElementById('url-box').textContent).catch(() => {}); toast('s', '📋', 'Link copied!'); }
+
+// ═══════════════════════════════════════
+// CONNECTION BAR
+// ═══════════════════════════════════════
+let _connBarTimer = null;
+function showConnBar(type, msg, duration = 3000) {
+  const bar = document.getElementById('conn-bar');
+  bar.textContent = msg;
+  bar.className   = 'conn-bar show cb-' + (type === 'ok' ? 'ok' : 'warn');
+  clearTimeout(_connBarTimer);
+  if (duration > 0) _connBarTimer = setTimeout(() => bar.classList.remove('show'), duration);
+}
+
+// ═══════════════════════════════════════
+// FILE PREVIEW PANEL
+// ═══════════════════════════════════════
+let _fpExpanded = true;
+function toggleFpPanel() {
+  _fpExpanded = !_fpExpanded;
+  document.getElementById('fp-file-list').style.display  = _fpExpanded ? '' : 'none';
+  document.getElementById('fp-summary').style.display    = _fpExpanded ? '' : 'none';
+  document.getElementById('fp-target-row').style.display = _fpExpanded ? '' : 'none';
+  document.getElementById('fp-toggle').textContent       = _fpExpanded ? '▲ Hide' : '▼ Show';
+}
+
+function refreshFpTarget() {
+  const sel  = document.getElementById('target-sel');
+  const val  = sel?.value || 'all';
+  const nameEl = document.getElementById('fp-target-name');
+  if (val === 'all') {
+    const count = Object.keys(S.peers).filter(id => id !== '__me__').length;
+    nameEl.textContent = count ? 'All ' + count + ' device' + (count > 1 ? 's' : '') : 'All devices';
+  } else {
+    const peer = S.peers[val];
+    nameEl.textContent = peer ? (deviceIcon(peer.name) + ' ' + peer.name) : 'Selected device';
+  }
+}
+
+function renderFpPanel() {
+  const panel = document.getElementById('fp-panel');
+  if (!S.queue.length) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  const totalSize = S.queue.reduce((a, q) => a + q.size, 0);
+  const exts = [...new Set(S.queue.map(q => { const e = q.file.name.split('.').pop().toUpperCase().slice(0, 4); return e || 'FILE'; }))].slice(0, 4).join(', ');
+  document.getElementById('fp-count').textContent     = S.queue.length;
+  document.getElementById('fp-total-size').textContent = fmtSize(totalSize);
+  document.getElementById('fp-types').textContent     = exts || '—';
+  document.getElementById('fp-title').textContent     = S.queue.length + ' file' + (S.queue.length > 1 ? 's' : '') + ' selected';
+  refreshFpTarget();
+  const list = document.getElementById('fp-file-list');
+  list.innerHTML = '';
+  S.queue.forEach(item => {
+    const [col, ext] = extColor(item.file.name);
+    const safeName   = esc(item.file.name);
+    const safePath   = item.path ? esc(item.path.substring(0, item.path.lastIndexOf('/'))) : '';
+    const row = document.createElement('div');
+    row.className = 'fp-file-row';
+    row.innerHTML = `
+      <span class="fp-ext" style="background:${col}22;color:${col};">${ext}</span>
+      <span class="fp-fname" title="${safeName}">${safeName}</span>
+      ${safePath ? `<span class="fp-fpath" title="${safePath}">📂 ${safePath}</span>` : ''}
+      <span class="fp-fsize">${fmtSize(item.size)}</span>
+    `;
+    list.appendChild(row);
+  });
+}
+
+// ═══════════════════════════════════════
+// DEVICE LIST
+// ═══════════════════════════════════════
+function renderDevices() {
+  const ul = document.getElementById('device-list');
+  const entries = Object.entries(S.peers);
+  if (!entries.length) {
+    ul.innerHTML = '<div class="empty-box"><div class="ei">📱</div><div class="et">Waiting for devices…</div></div>';
+    document.getElementById('s-devs').textContent     = '0';
+    document.getElementById('dev-count-lbl').textContent = 'Waiting for others…';
+    return;
+  }
+  ul.innerHTML = '';
+  entries.forEach(([id, { name, isMe }]) => {
+    const icon = deviceIcon(name);
+    const div  = document.createElement('div');
+    div.className = 'dev-card online';
+    div.innerHTML = `
+      <div class="dev-avatar ${isMe ? 'av-me' : 'av-peer'}">${icon}</div>
+      <div class="dev-info">
+        <div class="dev-name">${esc(name)}</div>
+        <div class="dev-status">● ${isMe ? 'This device' : 'Online · Ready'}</div>
+      </div>
+      <span class="dev-badge ${isMe ? 'badge-me' : 'badge-peer'}">${isMe ? 'YOU' : 'PEER'}</span>
+    `;
+    ul.appendChild(div);
+  });
+  const peers = entries.filter(([id]) => id !== '__me__').length;
+  document.getElementById('dev-count-lbl').textContent = peers === 0 ? 'Waiting for others…' : peers + ' device' + (peers > 1 ? 's' : '') + ' connected';
+  document.getElementById('s-devs').textContent = entries.length;
+}
+
+function refreshTargetSel() {
+  const sel = document.getElementById('target-sel');
+  sel.innerHTML = '<option value="all">📡 All devices in hall</option>';
+  Object.entries(S.peers).forEach(([id, { name, isMe }]) => {
+    if (isMe) return;
+    const o = document.createElement('option');
+    o.value = id;
+    o.textContent = deviceIcon(name) + ' ' + name;
+    sel.appendChild(o);
+  });
+  refreshFpTarget();
+}
+
+// ═══════════════════════════════════════
+// FILE QUEUE
+// FIX: queue cleared after each send so old files don't re-send
+// ═══════════════════════════════════════
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); addFiles(Array.from(e.dataTransfer.files).map(f => ({ file: f, path: f.webkitRelativePath || '' }))); });
+
+function onFileInput(e)   { addFiles(Array.from(e.target.files).map(f => ({ file: f, path: '' }))); e.target.value = ''; }
+function onFolderInput(e) { addFiles(Array.from(e.target.files).map(f => ({ file: f, path: f.webkitRelativePath || '' }))); e.target.value = ''; }
+
+function addFiles(items) {
+  items.forEach(({ file, path }) => {
+    if (!S.queue.find(q => q.file.name === file.name && q.file.size === file.size)) {
+      S.queue.push({ id: crypto.randomUUID(), file, path, size: file.size, status: 'waiting', progress: 0 });
+    }
+  });
+  renderFileTable();
+  renderFpPanel();
+}
+
+function clearQueue() {
+  if (S.sending) return;
+  S.queue = [];
+  renderFileTable();
+  renderFpPanel();
+  document.getElementById('clear-btn').style.display = 'none';
+}
+
+function removeFile(id) {
+  if (S.sending) return;
+  S.queue = S.queue.filter(q => q.id !== id);
+  renderFileTable();
+  renderFpPanel();
+}
+
+function extColor(fname) {
+  const e = (fname.split('.').pop() || '').toLowerCase();
+  const m = { mp4:'#ff6b6b',mov:'#ff6b6b',mkv:'#ff6b6b',avi:'#ff6b6b', pdf:'#ff9f43', apk:'#4f8eff',exe:'#4f8eff',dmg:'#4f8eff', zip:'#ffd166',rar:'#ffd166','7z':'#ffd166', png:'#00ffb3',jpg:'#00ffb3',jpeg:'#00ffb3',gif:'#00ffb3',webp:'#00ffb3', mp3:'#a29bfe',flac:'#a29bfe',aac:'#a29bfe', doc:'#4f8eff',docx:'#4f8eff',xls:'#00ffb3',xlsx:'#00ffb3' };
+  return [m[e] || '#7a8aaa', (e.toUpperCase().slice(0, 4) || 'FILE')];
+}
+
+function renderFileTable() {
+  const wrap = document.getElementById('file-table-wrap');
+  const tb   = document.getElementById('file-tbody');
+  if (!S.queue.length) { wrap.style.display = 'none'; document.getElementById('clear-btn').style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  document.getElementById('clear-btn').style.display = 'block';
+  tb.innerHTML = '';
+  S.queue.forEach(item => {
+    const [col, ext] = extColor(item.file.name);
+    const safeName   = esc(item.file.name);
+    const safePath   = item.path ? esc(item.path.substring(0, item.path.lastIndexOf('/'))) : '';
+    const tr = document.createElement('tr');
+    tr.id = 'row-' + item.id;
+    tr.innerHTML = `
+      <td><span class="ext-badge" style="background:${col}22;color:${col};">${ext}</span>
+          <div class="fname">${safeName}</div>
+          ${safePath ? `<div class="fpath">📂 ${safePath}</div>` : ''}</td>
+      <td style="font-family:var(--mono);font-size:.68rem;color:var(--text2);white-space:nowrap;">${fmtSize(item.size)}</td>
+      <td><div class="fprog"><div class="fprog-fill" id="fpf-${item.id}" style="width:0%"></div></div>
+          <span style="font-size:.62rem;color:var(--text2);font-family:var(--mono);margin-left:4px;" id="fpct-${item.id}">0%</span></td>
+      <td id="fst-${item.id}"><span class="st st-waiting">Waiting</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="removeFile('${item.id}')" style="padding:4px 8px;font-size:.7rem;">✕</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+function setFileStatus(item, status, pct) {
+  item.status = status;
+  if (pct !== undefined) item.progress = pct;
+  const pf = document.getElementById('fpf-' + item.id);
+  const pc = document.getElementById('fpct-' + item.id);
+  const st = document.getElementById('fst-' + item.id);
+  if (pf) { pf.style.width = pct + '%'; pf.className = 'fprog-fill' + (status === 'done' ? ' done' : ''); }
+  if (pc) pc.textContent = pct + '%';
+  if (st) {
+    const badges = { waiting:'<span class="st st-waiting">Waiting</span>', queued:'<span class="st st-queued">Queued</span>', sending:'<span class="st st-sending">Sending…</span>', done:'<span class="st st-done">Done ✓</span>', failed:'<span class="st st-failed">Failed</span>' };
+    st.innerHTML = badges[status] || badges.waiting;
+  }
+}
+
+// ═══════════════════════════════════════
+// TRANSFER — FIX: clear queue after send
+// ═══════════════════════════════════════
+async function startTransfer() {
+  if (!S.hall)         { toast('e', '⚠️', 'Create or join a hall first!'); return; }
+  if (!S.queue.length) { toast('e', '⚠️', 'No files selected'); return; }
+  if (S.sending)       return;
+
+  const peers = Object.keys(S.peers).filter(id => id !== '__me__').length;
+  if (!peers) { toast('e', '⚠️', 'No other devices in hall!'); return; }
+
+  S.sending    = true;
+  S.totalBytes = S.queue.reduce((a, f) => a + f.size, 0);
+  S.startTime  = Date.now();
+
+  document.getElementById('send-btn').disabled      = true;
+  document.getElementById('glob-prog').style.display = 'block';
+  document.getElementById('glob-fill').style.width   = '0%';
+  S.queue.forEach(item => setFileStatus(item, 'queued', 0));
+
+  const targetId = document.getElementById('target-sel').value;
+
+  // FIX: capture the queue snapshot before sending
+  const sendSnapshot = [...S.queue];
+
+  try {
+    await engine.sendFiles(
+      sendSnapshot.map(q => ({ id: q.id, file: q.file, path: q.path })),
+      targetId === 'all' ? undefined : targetId,
+      ({ id, pct, speed }) => {
+        const item = sendSnapshot.find(q => q.id === id);
+        if (item) setFileStatus(item, pct < 100 ? 'sending' : 'done', pct);
+        updateGlobalProgress(speed);
+      }
+    );
+    S.filesSent += sendSnapshot.length;
+    S.bytesSent += S.totalBytes;
+    document.getElementById('s-files').textContent = S.filesSent;
+    document.getElementById('s-data').textContent  = fmtSize(S.bytesSent);
+    toast('s', '✅', sendSnapshot.length + ' file' + (sendSnapshot.length > 1 ? 's' : '') + ' sent!');
+  } catch (e) {
+    toast('e', '❌', 'Transfer failed: ' + e.message);
+    sendSnapshot.forEach(item => { if (item.status !== 'done') setFileStatus(item, 'failed', item.progress); });
+  }
+
+  S.sending = false;
+  document.getElementById('send-btn').disabled = false;
+
+  // FIX: Clear queue after send so same files don't re-send next time
+  setTimeout(() => {
+    S.queue = [];
+    renderFileTable();
+    renderFpPanel();
+    document.getElementById('glob-prog').style.display = 'none';
+    document.getElementById('s-speed').textContent     = '—';
+  }, 2500);
+}
+
+function updateGlobalProgress(speed) {
+  const done      = S.queue.filter(q => q.status === 'done').length;
+  const totalProg = S.queue.reduce((a, q) => a + q.progress, 0);
+  const pct       = Math.round(totalProg / Math.max(S.queue.length, 1));
+  const bytesDone = S.queue.filter(q => q.status === 'done').reduce((a, q) => a + q.size, 0);
+  document.getElementById('glob-fill').style.width  = pct + '%';
+  document.getElementById('glob-pct').textContent   = pct + '%';
+  document.getElementById('glob-xfer').textContent  = fmtSize(bytesDone) + ' / ' + fmtSize(S.totalBytes);
+  document.getElementById('glob-done').textContent  = done + ' / ' + S.queue.length + ' files';
+  if (speed) {
+    document.getElementById('glob-speed').textContent = fmtSize(speed) + '/s';
+    document.getElementById('s-speed').textContent    = fmtSize(speed) + '/s';
+  }
+}
+
+// ═══════════════════════════════════════
+// RECEIVED FILES
+// ═══════════════════════════════════════
+function addReceivedFile(item, fromName) {
+  const list = document.getElementById('recv-list');
+  if (list.querySelector('.empty-box')) list.innerHTML = '';
+  const [col, ext] = extColor(item.name);
+  const safeName   = esc(item.name);
+  const safeFrom   = esc(fromName);
+  const div = document.createElement('div');
+  div.className = 'recv-item';
+  div.innerHTML = `
+    <span class="ext-badge" style="background:${col}22;color:${col};font-size:.7rem;padding:4px 6px;border-radius:6px;">${ext}</span>
+    <div class="recv-meta">
+      <div class="recv-name">${safeName}</div>
+      <div class="recv-info">${fmtSize(item.size)}</div>
+      <div class="recv-from">from ${safeFrom}</div>
+    </div>
+    <a class="btn btn-ghost btn-sm" id="dl-${Math.random().toString(36).slice(2)}">⬇ Save</a>
+  `;
+  const a = div.querySelector('a');
+  a.href = item.url;
+  a.setAttribute('download', item.name);
+  list.insertBefore(div, list.firstChild);
+  const n = list.querySelectorAll('.recv-item').length;
+  document.getElementById('recv-count-lbl').textContent = n + ' file' + (n > 1 ? 's' : '') + ' received';
+  toast('s', '📥', safeName + ' from ' + safeFrom);
+}
+
+// ═══════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════
+let _chatReplyTo = null;
+
+function scrollChatToBottom() {
+  const el = document.getElementById('chat-messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderChatMsg(msg, isMe) {
+  const wrap = document.getElementById('chat-messages');
+  // Remove empty placeholder
+  const empty = wrap.querySelector('.chat-empty');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + (isMe ? 'me' : 'them');
+  div.dataset.msgId = msg.id;
+
+  const time = new Date(msg.ts || msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const text = esc(msg.text || '');
+  const name = isMe ? 'You' : esc(msg.fromName || msg.sender_name || 'Peer');
+
+  let replyHtml = '';
+  if (msg.replyTo) {
+    replyHtml = `<div class="chat-reply-preview">↩ ${esc(msg.replyTo)}</div>`;
+  }
+
+  div.innerHTML = `
+    ${!isMe ? `<div class="chat-sender">${name}</div>` : ''}
+    ${replyHtml}
+    <div class="chat-bubble" ondblclick="replyTo('${esc(msg.id)}','${text.replace(/'/g,"\\'")}','${name}')">${text}</div>
+    <div class="chat-meta">${time}${isMe ? ' ✓' : ''}</div>
+  `;
+  wrap.appendChild(div);
+
+  // Update chat count
+  const count = wrap.querySelectorAll('.chat-msg').length;
+  document.getElementById('chat-count-lbl').textContent = count + ' message' + (count !== 1 ? 's' : '') + ' · Double-tap to reply';
+}
+
+function replyTo(msgId, text, fromName) {
+  _chatReplyTo = { id: msgId, text, fromName };
+  const banner = document.getElementById('chat-reply-banner');
+  document.getElementById('chat-reply-text').textContent = fromName + ': ' + text;
+  banner.classList.add('show');
+  document.getElementById('chat-input').focus();
+}
+
+function cancelReply() {
+  _chatReplyTo = null;
+  document.getElementById('chat-reply-banner').classList.remove('show');
+}
+
+function chatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMsg(); }
+}
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function sendChatMsg() {
+  if (!S.hall) { toast('e', '⚠️', 'Join a hall first'); return; }
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  engine.socket.emit('chat-message', {
+    text,
+    replyTo: _chatReplyTo ? _chatReplyTo.text : null,
+  });
+
+  input.value = '';
+  input.style.height = 'auto';
+  cancelReply();
+  scrollChatToBottom();
+}
+
+// File share via chat — opens file selector then auto-sends to all
+function triggerChatFile() {
+  if (!S.hall) { toast('e', '⚠️', 'Join a hall first'); return; }
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.multiple = true;
+  inp.onchange = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    addFiles(files.map(f => ({ file: f, path: '' })));
+    toast('i', '📎', files.length + ' file(s) queued — press Send');
+    document.getElementById('send-btn').scrollIntoView({ behavior: 'smooth' });
+  };
+  inp.click();
+}
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+function fmtSize(b) {
+  if (b >= 1e9) return (b / 1e9).toFixed(2) + ' GB';
+  if (b >= 1e6) return (b / 1e6).toFixed(1) + ' MB';
+  if (b >= 1e3) return (b / 1e3).toFixed(0) + ' KB';
+  return (b || 0) + ' B';
+}
+
+function toast(type, icon, msg) {
+  const d = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast t' + type[0];
+  const span = document.createElement('span');
+  span.className = 'toast-msg';
+  span.textContent = msg;
+  t.innerHTML = `<span>${icon}</span>`;
+  t.appendChild(span);
+  const btn = document.createElement('button');
+  btn.className   = 'toast-close';
+  btn.textContent = '✕';
+  btn.onclick     = () => t.remove();
+  t.appendChild(btn);
+  d.appendChild(t);
+  setTimeout(() => { if (t.parentElement) { t.style.animation = 'toast-in .3s ease reverse'; setTimeout(() => t.remove(), 280); } }, 4000);
+}
+
+// ═══════════════════════════════════════
+// URL PARAM — auto join if ?hall=XXXXXX
+// ═══════════════════════════════════════
+const _urlParams = new URLSearchParams(location.search);
+const _hallParam = _urlParams.get('hall');
+if (_hallParam) {
+  document.getElementById('join-input').value = _hallParam.toUpperCase().slice(0, 6);
+  const _t = setInterval(() => {
+    if (S.myName) { clearInterval(_t); joinHall(); }
+  }, 300);
+}
+</script>
+</body>
+</html>

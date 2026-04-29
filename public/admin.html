@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SwiftShare Admin</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234f8eff'/><text x='16' y='23' font-size='20' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>S</text></svg>"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#060a14;--bg1:#0b1120;--bg2:#101828;--bg3:#152033;--bg4:#1a2840;
+  --bd:rgba(255,255,255,0.06);--bd2:rgba(255,255,255,0.11);--bd3:rgba(255,255,255,0.16);
+  --a1:#4f8eff;--a2:#00e5ff;--a3:#00ffb3;--a4:#ff6b6b;--a5:#ffd166;--a6:#c084fc;
+  --t:#e8edf5;--t2:#7a8aaa;--t3:#3a4a6a;
+  --mono:'JetBrains Mono',monospace;--sans:'DM Sans',sans-serif;
+  --r:10px;--r2:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--sans);background:var(--bg);color:var(--t);min-height:100vh;font-size:14px;}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+.sidebar{background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+.main{overflow:auto;padding:24px;}
+
+/* ── Sidebar ── */
+.sb-logo{padding:20px 18px 16px;border-bottom:1px solid var(--bd);}
+.sb-logo-row{display:flex;align-items:center;gap:9px;}
+.sb-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--a1),var(--a2));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:#fff;}
+.sb-name{font-size:.95rem;font-weight:600;}
+.sb-sub{font-size:.62rem;color:var(--t3);font-family:var(--mono);margin-top:2px;letter-spacing:.05em;}
+
+.sb-nav{flex:1;padding:12px 10px;overflow-y:auto;}
+.sb-section{font-size:.58rem;font-weight:600;color:var(--t3);letter-spacing:.12em;text-transform:uppercase;padding:8px 8px 4px;margin-top:8px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);cursor:pointer;color:var(--t2);font-size:.82rem;transition:all .15s;margin-bottom:2px;}
+.nav-item:hover{background:var(--bg3);color:var(--t);}
+.nav-item.active{background:rgba(79,142,255,.12);color:var(--a1);border:1px solid rgba(79,142,255,.2);}
+.nav-icon{font-size:.9rem;width:18px;text-align:center;flex-shrink:0;}
+.nav-badge{margin-left:auto;font-size:.58rem;padding:2px 6px;border-radius:5px;background:var(--bg3);color:var(--t2);font-family:var(--mono);}
+
+.sb-bottom{padding:12px;border-top:1px solid var(--bd);}
+.conn-status{display:flex;align-items:center;gap:7px;font-size:.72rem;color:var(--t2);}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot-ok{background:var(--a3);box-shadow:0 0 6px var(--a3);animation:blink 2s ease infinite;}
+.dot-err{background:var(--a4);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Header ── */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.page-title{font-size:1.2rem;font-weight:600;}
+.page-sub{font-size:.72rem;color:var(--t2);margin-top:2px;font-family:var(--mono);}
+.header-actions{display:flex;gap:8px;}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r);border:1px solid var(--bd2);cursor:pointer;font-family:var(--sans);font-size:.78rem;font-weight:500;transition:all .15s;white-space:nowrap;}
+.btn-ghost{background:transparent;color:var(--t2);}
+.btn-ghost:hover{background:var(--bg3);color:var(--t);}
+.btn-primary{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;border:none;box-shadow:0 3px 12px rgba(79,142,255,.3);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 5px 18px rgba(79,142,255,.4);}
+.btn-sm{padding:5px 10px;font-size:.72rem;}
+
+/* ── Sections ── */
+.section{display:none;}
+.section.active{display:block;}
+
+/* ── Metric cards ── */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.mc{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r2);padding:16px 18px;position:relative;overflow:hidden;}
+.mc::after{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:50%;opacity:.08;transform:translate(20px,-20px);}
+.mc-a1::after{background:var(--a1);}
+.mc-a2::after{background:var(--a2);}
+.mc-a3::after{background:var(--a3);}
+.mc-a5::after{background:var(--a5);}
+.mc-icon{font-size:1.2rem;margin-bottom:8px;}
+.mc-val{font-size:1.6rem;font-weight:600;font-family:var(--mono);line-height:1;}
+.mc-lbl{font-size:.65rem;color:var(--t2);margin-top:4px;text-transform:uppercase;letter-spacing:.08em;}
+.mc-trend{font-size:.68rem;margin-top:5px;}
+.trend-up{color:var(--a3);}
+.trend-dn{color:var(--a4);}
+
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--bd);}
+.card-title{font-size:.88rem;font-weight:600;}
+.card-body{padding:16px 18px;}
+.card-foot{padding:10px 18px;border-top:1px solid var(--bd);font-size:.68rem;color:var(--t3);font-family:var(--mono);}
+
+/* ── Grid layouts ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.g3{display:grid;grid-template-columns:1.7fr 1fr;gap:14px;margin-bottom:14px;}
+.mb{margin-bottom:14px;}
+
+/* ── Table ── */
+.tbl-wrap{overflow-x:auto;}
+.tbl{width:100%;border-collapse:collapse;font-size:.78rem;}
+.tbl thead th{background:var(--bg3);padding:9px 14px;font-size:.65rem;font-weight:500;color:var(--t3);text-align:left;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--bd);white-space:nowrap;position:sticky;top:0;z-index:2;}
+.tbl tbody tr{border-bottom:1px solid var(--bd);transition:background .12s;}
+.tbl tbody tr:last-child{border-bottom:none;}
+.tbl tbody tr:hover td{background:rgba(255,255,255,.02);}
+.tbl td{padding:9px 14px;vertical-align:middle;}
+.tbl-empty{text-align:center;padding:32px;color:var(--t3);font-size:.78rem;}
+
+/* ── Badges ── */
+.badge{font-size:.6rem;padding:3px 7px;border-radius:5px;font-family:var(--mono);font-weight:600;display:inline-block;white-space:nowrap;}
+.b-ok  {background:rgba(0,255,179,.1); color:var(--a3);border:1px solid rgba(0,255,179,.2);}
+.b-warn{background:rgba(255,209,102,.1);color:var(--a5);border:1px solid rgba(255,209,102,.2);}
+.b-err {background:rgba(255,107,107,.1);color:var(--a4);border:1px solid rgba(255,107,107,.2);}
+.b-info{background:rgba(79,142,255,.1); color:var(--a1);border:1px solid rgba(79,142,255,.2);}
+.b-pur {background:rgba(192,132,252,.1);color:var(--a6);border:1px solid rgba(192,132,252,.2);}
+
+/* ── Filter bar ── */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.filter-bar input,.filter-bar select{
+  background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);
+  padding:7px 12px;color:var(--t);font-family:var(--sans);font-size:.78rem;outline:none;}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--a1);}
+.filter-bar input{width:200px;}
+
+/* ── Hall bar chart mini ── */
+.mini-bar-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd);}
+.mini-bar-row:last-child{border-bottom:none;}
+.mini-code{font-family:var(--mono);font-size:.72rem;color:var(--a2);width:62px;flex-shrink:0;}
+.mini-bar-wrap{flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.mini-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--a1),var(--a2));transition:width .5s ease;}
+.mini-count{font-size:.65rem;color:var(--t2);font-family:var(--mono);white-space:nowrap;min-width:50px;text-align:right;}
+.mini-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* ── Activity feed ── */
+.act-item{display:flex;gap:11px;padding:8px 0;border-bottom:1px solid var(--bd);}
+.act-item:last-child{border-bottom:none;}
+.act-icon-wrap{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;}
+.act-body{flex:1;min-width:0;}
+.act-msg{font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.act-time{font-size:.62rem;color:var(--t2);font-family:var(--mono);margin-top:2px;}
+
+/* ── Stat rows ── */
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);}
+.stat-row:last-child{border-bottom:none;}
+.stat-key{font-size:.78rem;color:var(--t2);}
+.stat-val{font-size:.78rem;font-family:var(--mono);font-weight:500;}
+
+/* ── Empty states ── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--t3);}
+.empty-icon{font-size:2rem;opacity:.3;margin-bottom:10px;}
+.empty-msg{font-size:.78rem;}
+
+/* ── Toasts ── */
+#toasts{position:fixed;bottom:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;}
+.toast{display:flex;align-items:center;gap:9px;background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 14px;font-size:.78rem;box-shadow:0 6px 24px rgba(0,0,0,.5);animation:tin .25s ease;}
+@keyframes tin{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── Loading spinner ── */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--bd2);border-top-color:var(--a1);border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;}
+  .sidebar{display:none;}
+  .metrics{grid-template-columns:repeat(2,1fr);}
+  .g2,.g3{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-row">
+      <div class="sb-mark">S</div>
+      <div>
+        <div class="sb-name">SwiftShare</div>
+        <div class="sb-sub">ADMIN PANEL</div>
+      </div>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-section">Monitor</div>
+    <div class="nav-item active" onclick="go('overview',this)">
+      <span class="nav-icon">📊</span> Overview
+    </div>
+    <div class="nav-item" onclick="go('halls',this)">
+      <span class="nav-icon">🔗</span> Halls
+      <span class="nav-badge" id="nb-halls">0</span>
+    </div>
+    <div class="nav-item" onclick="go('transfers',this)">
+      <span class="nav-icon">📦</span> Transfers
+      <span class="nav-badge" id="nb-xfers">0</span>
+    </div>
+    <div class="nav-item" onclick="go('users',this)">
+      <span class="nav-icon">📱</span> Devices
+      <span class="nav-badge" id="nb-users">0</span>
+    </div>
+
+    <div class="sb-section">System</div>
+    <div class="nav-item" onclick="go('health',this)">
+      <span class="nav-icon">🩺</span> Health
+    </div>
+    <div class="nav-item" onclick="go('setup',this)">
+      <span class="nav-icon">⚙️</span> Setup
+    </div>
+  </nav>
+  <div class="sb-bottom">
+    <div class="conn-status">
+      <span class="dot dot-err" id="conn-dot"></span>
+      <span id="conn-label">Connecting…</span>
+    </div>
+    <div style="font-size:.6rem;color:var(--t3);font-family:var(--mono);margin-top:5px;" id="last-refresh">Never refreshed</div>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<main class="main">
+
+  <!-- OVERVIEW -->
+  <div class="section active" id="s-overview">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Overview</div>
+        <div class="page-sub">Live database + server monitor</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-ghost btn-sm" onclick="loadAll()">↺ Refresh</button>
+        <button class="btn btn-primary btn-sm" onclick="window.open('/','_blank')">Open App ↗</button>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="mc mc-a2">
+        <div class="mc-icon">🔗</div>
+        <div class="mc-val" id="m-halls">—</div>
+        <div class="mc-lbl">Active Halls</div>
+        <div class="mc-trend" id="mt-halls"></div>
+      </div>
+      <div class="mc mc-a1">
+        <div class="mc-icon">📱</div>
+        <div class="mc-val" id="m-peers">—</div>
+        <div class="mc-lbl">Online Peers</div>
+        <div class="mc-trend" id="mt-peers"></div>
+      </div>
+      <div class="mc mc-a3">
+        <div class="mc-icon">📦</div>
+        <div class="mc-val" id="m-xfers">—</div>
+        <div class="mc-lbl">Total Transfers</div>
+        <div class="mc-trend trend-up" id="mt-xfers"></div>
+      </div>
+      <div class="mc mc-a5">
+        <div class="mc-icon">💾</div>
+        <div class="mc-val" id="m-bytes">—</div>
+        <div class="mc-lbl">Data Transferred</div>
+        <div class="mc-trend" id="mt-bytes"></div>
+      </div>
+    </div>
+
+    <div class="g3">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Daily transfers — last 7 days</span>
+        </div>
+        <div class="card-body">
+          <div style="position:relative;height:200px;">
+            <canvas id="chart-daily" role="img" aria-label="Daily transfer count bar chart for last 7 days">Daily transfer data loading.</canvas>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">Active halls</span></div>
+        <div class="card-body" id="hall-minilist">
+          <div class="empty-state"><div class="empty-icon">🔗</div><div class="empty-msg">No active halls</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Recent transfers</span></div>
+        <div class="card-body" id="recent-xfers-list">
+          <div class="empty-state"><div class="empty-msg">Loading…</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">DB stats</span></div>
+        <div class="card-body" id="db-stats">
+          <div class="empty-state"><div class="empty-msg">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HALLS -->
+  <div class="section" id="s-halls">
+    <div class="page-header">
+      <div><div class="page-title">Halls</div><div class="page-sub">All created halls — persisted in DB</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="loadAll()">↺ Refresh</button>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Hall list</span></div>
+      <div class="card-body">
+        <div class="filter-bar">
+          <input id="hall-q" placeholder="Search hall code…" oninput="renderHallTable()"/>
+          <select id="hall-status" onchange="renderHallTable()">
+            <option value="">All</option>
+            <option value="active">Active now</option>
+            <option value="idle">Idle</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Code</th><th>Peers now</th><th>Total xfers</th><th>Created</th><th>Last active</th><th>Status</th></tr></thead>
+            <tbody id="hall-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSFERS -->
+  <div class="section" id="s-transfers">
+    <div class="page-header">
+      <div><div class="page-title">Transfers</div><div class="page-sub">Complete transfer history from DB</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="loadAll()">↺ Refresh</button>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">All transfers</span></div>
+      <div class="card-body">
+        <div class="filter-bar">
+          <input id="xfer-q" placeholder="Search filename…" oninput="renderXferTable()"/>
+          <input id="xfer-hall" placeholder="Hall code…" oninput="renderXferTable()" style="width:120px;text-transform:uppercase;"/>
+          <select id="xfer-status" onchange="renderXferTable()">
+            <option value="">All status</option>
+            <option value="done">Done</option>
+            <option value="started">In progress</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>File</th><th>Size</th><th>From</th><th>To</th><th>Hall</th><th>Started</th><th>Status</th></tr></thead>
+            <tbody id="xfer-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-foot" id="xfer-foot">—</div>
+    </div>
+  </div>
+
+  <!-- USERS / DEVICES -->
+  <div class="section" id="s-users">
+    <div class="page-header">
+      <div><div class="page-title">Devices</div><div class="page-sub">Fingerprint-based device registry</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="loadAll()">↺ Refresh</button>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Registered devices</span></div>
+      <div class="card-body">
+        <div class="filter-bar">
+          <input id="user-q" placeholder="Search name…" oninput="renderUserTable()"/>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Name</th><th>Device</th><th>Files sent</th><th>Data sent</th><th>First seen</th><th>Last seen</th></tr></thead>
+            <tbody id="user-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEALTH -->
+  <div class="section" id="s-health">
+    <div class="page-header">
+      <div><div class="page-title">Server Health</div><div class="page-sub">Live server status</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="loadAll()">↺ Refresh</button>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Server status</span></div>
+        <div class="card-body" id="health-body">
+          <div class="empty-state"><div class="empty-msg">Loading…</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">API endpoints</span></div>
+        <div class="card-body" id="api-endpoints"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div class="section" id="s-setup">
+    <div class="page-header">
+      <div><div class="page-title">Setup Guide</div><div class="page-sub">Database integration steps</div></div>
+    </div>
+
+    <div class="card mb">
+      <div class="card-head"><span class="card-title">Step 1 — Install dependency</span></div>
+      <div class="card-body">
+        <pre style="background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:14px;font-family:var(--mono);font-size:.78rem;color:var(--a2);overflow-x:auto;">npm install better-sqlite3</pre>
+        <p style="font-size:.75rem;color:var(--t2);margin-top:10px;">Ye SQLite ke liye fast synchronous driver hai. Koi alag DB server nahi chahiye.</p>
+      </div>
+    </div>
+
+    <div class="card mb">
+      <div class="card-head"><span class="card-title">Step 2 — Files place karo</span></div>
+      <div class="card-body">
+        <div style="font-size:.78rem;line-height:2.2;">
+          <div>📁 <code style="font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;">swiftshare/</code></div>
+          <div style="margin-left:20px;">├── <code style="font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;color:var(--a3);">server.js</code> <span style="color:var(--t2);">← updated (DB integrated)</span></div>
+          <div style="margin-left:20px;">├── <code style="font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;color:var(--a3);">db.js</code> <span style="color:var(--t2);">← naya file (DB layer)</span></div>
+          <div style="margin-left:20px;">├── <code style="font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;color:var(--a1);">package.json</code></div>
+          <div style="margin-left:20px;">├── <code style="font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;color:var(--a1);">.gitignore</code></div>
+          <div style="margin-left:20px;">└── <code style="font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;">public/</code></div>
+          <div style="margin-left:40px;">├── <code style="font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;">index.html</code></div>
+          <div style="margin-left:40px;">├── <code style="font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;color:var(--a3);">admin.html</code> <span style="color:var(--t2);">← ye file (yahan ho)</span></div>
+          <div style="margin-left:40px;">└── <code style="font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;">swiftshare-engine.js</code></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb">
+      <div class="card-head"><span class="card-title">Step 3 — Run karo</span></div>
+      <div class="card-body">
+        <pre style="background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:14px;font-family:var(--mono);font-size:.78rem;color:var(--a2);overflow-x:auto;">npm start
+# ya dev mode mein:
+npm run dev</pre>
+        <p style="font-size:.75rem;color:var(--t2);margin-top:10px;"><code style="font-family:var(--mono);">swiftshare.db</code> automatically create ho jayega first run pe. Koi migration nahi chahiye.</p>
+      </div>
+    </div>
+
+    <div class="card mb">
+      <div class="card-head"><span class="card-title">Step 4 — GitHub pe upload</span></div>
+      <div class="card-body">
+        <pre style="background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:14px;font-family:var(--mono);font-size:.78rem;color:var(--a2);overflow-x:auto;">git init
+git add .
+git commit -m "feat: add SQLite DB + admin dashboard"
+git remote add origin https://github.com/YOUR_USERNAME/swiftshare.git
+git push -u origin main</pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title">Environment variables (optional)</span></div>
+      <div class="card-body">
+        <div class="stat-row"><span class="stat-key">PORT</span><span class="stat-val" style="color:var(--a2);">3000 (default)</span></div>
+        <div class="stat-row"><span class="stat-key">DB_PATH</span><span class="stat-val" style="color:var(--a2);">./swiftshare.db (default)</span></div>
+        <p style="font-size:.72rem;color:var(--t2);margin-top:10px;">Render pe deploy karte time: Settings → Environment Variables mein set karo.</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const SERVER = window.location.origin; // same domain
+let _health={}, _stats={}, _halls=[], _xfers=[], _users=[];
+let _chart=null;
+let _activeNav=null;
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function go(id, el) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('s-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function fmtSize(b) {
+  if (!b || b === 0) return '0 B';
+  if (b >= 1e9) return (b/1e9).toFixed(2)+' GB';
+  if (b >= 1e6) return (b/1e6).toFixed(1)+' MB';
+  if (b >= 1e3) return Math.round(b/1e3)+' KB';
+  return b+' B';
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  const d    = new Date(typeof ts==='number' && ts<2e9 ? ts*1000 : ts);
+  const diff = Math.floor((Date.now()-d)/1000);
+  if (diff < 60)    return diff+'s ago';
+  if (diff < 3600)  return Math.floor(diff/60)+'m ago';
+  if (diff < 86400) return Math.floor(diff/3600)+'h ago';
+  return d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
+function fmtUptime(s) {
+  const d=Math.floor(s/86400), h=Math.floor((s%86400)/3600), m=Math.floor((s%3600)/60);
+  if(d) return d+'d '+h+'h';
+  if(h) return h+'h '+m+'m';
+  return m+'m '+s%60+'s';
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toast(msg, type='ok') {
+  const t   = document.createElement('div');
+  t.className='toast';
+  t.style.borderColor = type==='ok' ? 'rgba(0,255,179,.3)' : 'rgba(255,107,107,.3)';
+  t.textContent = msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>{ t.style.animation='tin .25s ease reverse'; setTimeout(()=>t.remove(),220); },3000);
+}
+
+// ── Fetch helpers ─────────────────────────────────────────────────────────────
+async function apiFetch(url) {
+  try {
+    const r = await fetch(SERVER+url, {signal:AbortSignal.timeout(6000)});
+    if (!r.ok) return null;
+    return r.json();
+  } catch { return null; }
+}
+
+// ── Load all data ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  setConn('loading');
+  const [health, stats, xfers, users, halls] = await Promise.all([
+    apiFetch('/health'),
+    apiFetch('/api/stats'),
+    apiFetch('/api/transfers'),
+    apiFetch('/api/users'),
+    apiFetch('/api/halls'),
+  ]);
+
+  _health = health || {};
+  _stats  = stats  || {};
+  _xfers  = xfers  || [];
+  _users  = users  || [];
+  _halls  = halls  || [];
+
+  const ok = !!health;
+  setConn(ok ? 'ok' : 'err');
+
+  renderOverview();
+  renderHallTable();
+  renderXferTable();
+  renderUserTable();
+  renderHealth();
+
+  // Update nav badges
+  document.getElementById('nb-halls').textContent = _halls.length;
+  document.getElementById('nb-xfers').textContent = _xfers.length;
+  document.getElementById('nb-users').textContent = _users.length;
+
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('last-refresh').textContent = 'Last: '+now;
+}
+
+function setConn(state) {
+  const dot   = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  if (state==='ok')      { dot.className='dot dot-ok'; label.textContent='Connected'; }
+  else if (state==='err'){ dot.className='dot dot-err'; label.textContent='Cannot reach server'; }
+  else                   { dot.className='dot'; label.textContent='Refreshing…'; }
+}
+
+// ── Overview ──────────────────────────────────────────────────────────────────
+function renderOverview() {
+  // Metrics
+  const activeHalls = _health.halls || 0;
+  const peers       = _health.peers || 0;
+  const totalXfers  = _stats.totalTransfers || 0;
+  const totalBytes  = _stats.totalBytes || 0;
+
+  document.getElementById('m-halls').textContent = activeHalls;
+  document.getElementById('m-peers').textContent = peers;
+  document.getElementById('m-xfers').textContent = totalXfers;
+  document.getElementById('m-bytes').textContent = fmtSize(totalBytes);
+
+  document.getElementById('mt-halls').className = 'mc-trend '+(activeHalls?'trend-up':'');
+  document.getElementById('mt-halls').textContent = activeHalls ? activeHalls+' open' : 'None open';
+  document.getElementById('mt-peers').textContent = peers ? peers+' online' : 'None online';
+  document.getElementById('mt-xfers').textContent = totalXfers+' total';
+
+  // Chart
+  renderDailyChart();
+
+  // Active halls mini
+  const hl = (_health.hallList || []).filter(h=>h.peers>0);
+  const hlEl = document.getElementById('hall-minilist');
+  if (!hl.length) {
+    hlEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🔗</div><div class="empty-msg">No active halls right now</div></div>';
+  } else {
+    const maxP = Math.max(...hl.map(h=>h.peers),1);
+    hlEl.innerHTML = hl.slice(0,8).map(h=>`
+      <div class="mini-bar-row">
+        <span class="mini-code">${esc(h.code)}</span>
+        <div class="mini-bar-wrap"><div class="mini-bar" style="width:${Math.round((h.peers/maxP)*100)}%"></div></div>
+        <span class="mini-dot" style="background:${h.peers?'var(--a3)':'var(--t3)'}"></span>
+        <span class="mini-count">${h.peers} peer${h.peers>1?'s':''} · ${h.ageMin||0}m</span>
+      </div>`).join('');
+  }
+
+  // Recent transfers
+  const rtEl = document.getElementById('recent-xfers-list');
+  const rt   = _xfers.slice(0,6);
+  if (!rt.length) {
+    rtEl.innerHTML='<div class="empty-state"><div class="empty-msg">No transfers yet</div></div>';
+  } else {
+    rtEl.innerHTML = rt.map(t=>`
+      <div class="act-item">
+        <div class="act-icon-wrap" style="background:rgba(79,142,255,.1);">📦</div>
+        <div class="act-body">
+          <div class="act-msg">${esc(t.file_name)} <span style="color:var(--t2);font-size:.65rem;">— ${fmtSize(t.file_size)}</span></div>
+          <div class="act-time">${esc(t.sender_name||'?')} → ${esc(t.receiver_name||'All')} · ${fmtTime(t.started_at)}</div>
+        </div>
+        <span class="badge ${t.status==='done'?'b-ok':t.status==='failed'?'b-err':'b-warn'}">${t.status}</span>
+      </div>`).join('');
+  }
+
+  // DB stats
+  const dbEl = document.getElementById('db-stats');
+  dbEl.innerHTML = `
+    <div class="stat-row"><span class="stat-key">Default Hall</span><span class="stat-val" style="color:var(--a2);">${_stats.defaultHall||'SWIFT1'}</span></div>
+    <div class="stat-row"><span class="stat-key">Total halls (DB)</span><span class="stat-val">${_stats.totalHalls||0}</span></div>
+    <div class="stat-row"><span class="stat-key">Total devices</span><span class="stat-val">${_stats.totalUsers||0}</span></div>
+    <div class="stat-row"><span class="stat-key">Total transfers</span><span class="stat-val">${_stats.totalTransfers||0}</span></div>
+    <div class="stat-row"><span class="stat-key">Chat messages</span><span class="stat-val">${_stats.totalChats||0}</span></div>
+    <div class="stat-row"><span class="stat-key">Data moved</span><span class="stat-val">${fmtSize(_stats.totalBytes||0)}</span></div>
+    <div class="stat-row"><span class="stat-key">Server uptime</span><span class="stat-val">${fmtUptime(_health.uptime||0)}</span></div>
+    <div class="stat-row"><span class="stat-key">DB type</span><span class="stat-val" style="color:var(--a2);">SQLite WAL</span></div>
+  `;
+}
+
+// ── Daily chart ───────────────────────────────────────────────────────────────
+function renderDailyChart() {
+  const raw  = _stats.last7days || [];
+  const days = [];
+  for (let i=6;i>=0;i--) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    days.push(d.toLocaleDateString('en',{weekday:'short'}));
+  }
+  const today = new Date();
+  const data  = days.map((_,i)=>{
+    const d = new Date(today); d.setDate(d.getDate()-(6-i));
+    const key = d.toISOString().slice(0,10);
+    const row = raw.find(r=>r.day===key);
+    return row ? row.count : 0;
+  });
+
+  const canvas = document.getElementById('chart-daily');
+  if (_chart) _chart.destroy();
+  _chart = new Chart(canvas, {
+    type:'bar',
+    data:{
+      labels:days,
+      datasets:[{
+        label:'Transfers',
+        data,
+        backgroundColor:'rgba(79,142,255,.55)',
+        borderColor:'rgba(79,142,255,1)',
+        borderWidth:1,
+        borderRadius:5,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{color:'#7a8aaa',font:{size:11}}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y:{ ticks:{color:'#7a8aaa',font:{size:11},stepSize:1}, grid:{color:'rgba(255,255,255,0.04)'}, beginAtZero:true }
+      }
+    }
+  });
+}
+
+// ── Hall table ────────────────────────────────────────────────────────────────
+function renderHallTable() {
+  const q  = (document.getElementById('hall-q')?.value||'').toUpperCase();
+  const sf = document.getElementById('hall-status')?.value||'';
+
+  // Merge DB halls + live peers
+  const liveMap = {};
+  (_health.hallList||[]).forEach(h=>{ liveMap[h.code]={peers:h.peers, names:h.names||[], ageMin:h.ageMin||0}; });
+
+  let rows = _halls.length ? _halls : (_health.hallList||[]).map(h=>({code:h.code,total_transfers:h.totalTransfers||0,created_at:null,last_active:null}));
+  if (q)      rows = rows.filter(r=>(r.code||'').includes(q));
+  if (sf==='active') rows = rows.filter(r=>(liveMap[r.code]?.peers||0)>0);
+  if (sf==='idle')   rows = rows.filter(r=>!(liveMap[r.code]?.peers||0));
+
+  const tb = document.getElementById('hall-tbody');
+  if (!rows.length) { tb.innerHTML=`<tr><td colspan="6" class="tbl-empty">No halls found</td></tr>`; return; }
+  tb.innerHTML = rows.map(r=>{
+    const live  = liveMap[r.code]||{};
+    const peers = live.peers||0;
+    return `<tr>
+      <td style="font-family:var(--mono);color:var(--a2);">${esc(r.code)}</td>
+      <td>${peers} <span style="font-size:.65rem;color:var(--t2);">${(live.names||[]).slice(0,3).map(esc).join(', ')}</span></td>
+      <td style="font-family:var(--mono);">${r.total_transfers||0}</td>
+      <td style="font-size:.72rem;">${fmtTime(r.created_at)}</td>
+      <td style="font-size:.72rem;">${r.last_active ? fmtTime(r.last_active) : (live.ageMin != null ? live.ageMin+'m ago' : '—')}</td>
+      <td><span class="badge ${peers?'b-ok':'b-warn'}">${peers?'Active':'Idle'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Transfer table ────────────────────────────────────────────────────────────
+function renderXferTable() {
+  const q  = (document.getElementById('xfer-q')?.value||'').toLowerCase();
+  const hq = (document.getElementById('xfer-hall')?.value||'').toUpperCase();
+  const sf = document.getElementById('xfer-status')?.value||'';
+
+  let rows = _xfers;
+  if (q)  rows = rows.filter(r=>(r.file_name||'').toLowerCase().includes(q));
+  if (hq) rows = rows.filter(r=>(r.hall_code||r.hall||'').includes(hq));
+  if (sf) rows = rows.filter(r=>r.status===sf);
+
+  const tb = document.getElementById('xfer-tbody');
+  if (!rows.length) { tb.innerHTML=`<tr><td colspan="7" class="tbl-empty">No transfers found</td></tr>`; return; }
+
+  tb.innerHTML = rows.slice(0,100).map(r=>`
+    <tr>
+      <td style="max-width:160px;">
+        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${esc(r.file_name||'—')}</div>
+        <div style="font-size:.62rem;color:var(--t2);font-family:var(--mono);">${r.file_mime||''}</div>
+      </td>
+      <td style="font-family:var(--mono);white-space:nowrap;font-size:.75rem;">${fmtSize(r.file_size)}</td>
+      <td style="font-size:.75rem;">${esc(r.sender_name||'—')}</td>
+      <td style="font-size:.75rem;">${esc(r.receiver_name||'All')}</td>
+      <td style="font-family:var(--mono);color:var(--a2);font-size:.72rem;">${esc(r.hall||r.hall_code||'—')}</td>
+      <td style="font-size:.72rem;white-space:nowrap;">${fmtTime(r.started_at)}</td>
+      <td><span class="badge ${r.status==='done'?'b-ok':r.status==='failed'?'b-err':'b-warn'}">${r.status||'—'}</span></td>
+    </tr>`).join('');
+
+  document.getElementById('xfer-foot').textContent =
+    `Showing ${Math.min(rows.length,100)} of ${rows.length} transfers`;
+}
+
+// ── User table ────────────────────────────────────────────────────────────────
+function renderUserTable() {
+  const q   = (document.getElementById('user-q')?.value||'').toLowerCase();
+  let rows  = _users;
+  if (q) rows = rows.filter(r=>(r.name||'').toLowerCase().includes(q));
+
+  const tb = document.getElementById('user-tbody');
+  if (!rows.length) {
+    tb.innerHTML=`<tr><td colspan="6" class="tbl-empty">
+      ${_users.length===0 ? 'DB connected hone ke baad devices yahan dikhenge' : 'No devices found'}
+    </td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(r=>`
+    <tr>
+      <td style="font-weight:500;">${esc(r.name||'—')}</td>
+      <td style="font-size:.72rem;color:var(--t2);">${esc((r.device_type||'Unknown').slice(0,40))}</td>
+      <td style="font-family:var(--mono);">${r.files_sent||0}</td>
+      <td style="font-family:var(--mono);">${fmtSize(r.total_sent||0)}</td>
+      <td style="font-size:.72rem;">${fmtTime(r.first_seen)}</td>
+      <td style="font-size:.72rem;">${fmtTime(r.last_seen)}</td>
+    </tr>`).join('');
+}
+
+// ── Health panel ──────────────────────────────────────────────────────────────
+function renderHealth() {
+  const h  = _health;
+  const el = document.getElementById('health-body');
+  if (!h.status) {
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-msg">Cannot reach server<br><span style="font-size:.68rem;">Make sure server is running on '+SERVER+'</span></div></div>';
+  } else {
+    el.innerHTML=`
+      <div class="stat-row"><span class="stat-key">Status</span><span class="stat-val"><span class="badge b-ok">Online</span></span></div>
+      <div class="stat-row"><span class="stat-key">Uptime</span><span class="stat-val">${fmtUptime(h.uptime||0)}</span></div>
+      <div class="stat-row"><span class="stat-key">Active halls</span><span class="stat-val">${h.halls||0}</span></div>
+      <div class="stat-row"><span class="stat-key">Connected peers</span><span class="stat-val">${h.peers||0}</span></div>
+      <div class="stat-row"><span class="stat-key">Server URL</span><span class="stat-val" style="font-size:.65rem;">${SERVER}</span></div>
+    `;
+  }
+
+  document.getElementById('api-endpoints').innerHTML=`
+    <div class="stat-row"><span class="stat-key">GET /health</span><span class="stat-val"><span class="badge b-ok">Active</span></span></div>
+    <div class="stat-row"><span class="stat-key">GET /api/stats</span><span class="stat-val"><span class="badge ${_stats.totalTransfers!=null?'b-ok':'b-warn'}">${_stats.totalTransfers!=null?'Active':'No DB'}</span></span></div>
+    <div class="stat-row"><span class="stat-key">GET /api/transfers</span><span class="stat-val"><span class="badge ${_xfers.length?'b-ok':'b-warn'}">${_xfers.length?'Active':'No data'}</span></span></div>
+    <div class="stat-row"><span class="stat-key">GET /api/users</span><span class="stat-val"><span class="badge ${_users.length?'b-ok':'b-warn'}">${_users.length?'Active':'No data'}</span></span></div>
+    <div class="stat-row"><span class="stat-key">GET /api/halls</span><span class="stat-val"><span class="badge ${_halls.length?'b-ok':'b-warn'}">${_halls.length?'Active':'No data'}</span></span></div>
+    <div class="stat-row"><span class="stat-key">GET /admin</span><span class="stat-val"><span class="badge b-ok">You are here</span></span></div>
+  `;
+}
+
+// ── Auto refresh every 20s ────────────────────────────────────────────────────
+loadAll();
+setInterval(loadAll, 20_000);
+</script>
+</body>
+</html>
